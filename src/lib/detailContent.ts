@@ -24,7 +24,7 @@ export interface DetailInsight {
   body: string;
 }
 
-export const BRAND_NAME = 'سينما برو';
+export const BRAND_NAME = 'CINMAPRO';
 
 const GENRE_NORMALIZE: Record<string, string> = {
   اثاره: 'إثارة',

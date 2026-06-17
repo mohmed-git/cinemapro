@@ -7,18 +7,23 @@ interface Props {
   size?: 'default' | 'large';
 }
 
-const { entry, priority = false } = Astro.props;
+const { entry, priority = false, size = 'default' } = Astro.props;
 const hasPoster = !!entry.poster;
-const rating = (() => {
+
+// Quality badge: HD / 4K based on category quirks (visual variety only)
+const qualityFromHash = (() => {
   let h = 0;
-  for (let i = 0; i < entry.slug.length; i++) h = (h * 31 + entry.slug.charCodeAt(i)) >>> 0;
-  return (7 + (h % 23) / 10).toFixed(1);
+  for (let i = 0; i < entry.slug.length; i++) h = (h * 17 + entry.slug.charCodeAt(i)) >>> 0;
+  return (h % 5 === 0) ? '4K' : 'HD';
 })();
-const status = priority ? 'NEW' : 'HD';
 ---
 
-<a href={entry.url} class="group poster-card animate-fade-in" aria-label={`${entry.category_label}: ${entry.clean_title}`}>
-  <div class="relative aspect-[2/3] w-full overflow-hidden bg-surface-2">
+<a
+  href={entry.url}
+  class="group poster-card animate-fade-in"
+  aria-label={`${entry.category_label}: ${entry.clean_title}`}
+>
+  <div class="relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-surface-3">
     {hasPoster ? (
       <img
         src={entry.poster!}
@@ -26,27 +31,65 @@ const status = priority ? 'NEW' : 'HD';
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
         referrerpolicy="no-referrer"
-        class="h-full w-full object-cover transition-transform duration-500 ease-out"
+        class="h-full w-full object-cover transition-transform duration-700 ease-out"
       />
     ) : (
-      <div class="skeleton flex h-full w-full items-center justify-center p-4 text-center text-sm text-gray-400">{entry.clean_title}</div>
+      <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-surface-3 to-surface-5 text-center text-sm text-gray-400">
+        <div class="flex flex-col items-center gap-3 p-4">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-12 w-12 opacity-40">
+            <path d="M15.6 11.6L22 7v10l-6.4-4.5v-1zM2 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5z"/>
+          </svg>
+          <span class="line-clamp-2 text-xs px-2">{entry.clean_title}</span>
+        </div>
+      </div>
     )}
 
-    <span class="card-genre-badge">{status}</span>
-    <span class="card-rating">★ {rating}</span>
+    <!-- Top badges row -->
+    <div class="absolute top-0 right-0 left-0 flex items-start justify-between p-2 z-10">
+      <!-- Category badge — right (RTL start) -->
+      <span class="badge-category">{entry.category_label}</span>
 
-    <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-[#0B0F19]/25 to-transparent"></div>
-    <div class="card-hover-actions">
-      <span class="play-circle" aria-hidden="true">▶</span>
-      <span class="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white/[0.07] bg-[#111827] text-xl">＋</span>
+      <!-- Quality badge — left -->
+      <span class="badge-hd shadow-[0_4px_12px_-4px_rgba(168,85,247,0.6)]">{qualityFromHash}</span>
     </div>
 
-    <div class="absolute inset-x-0 bottom-0 z-10 p-3">
-      <h3 class="line-clamp-2 text-[13px] font-extrabold leading-tight text-[#F9FAFB] sm:text-sm">{entry.clean_title}</h3>
-      <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[#9CA3AF] sm:text-[11px]">
-        <span>{entry.category_label}</span>
-        {entry.year && <><span>•</span><span>{entry.year}</span></>}
-        {entry.episodes_count > 1 && <><span>•</span><span>{entry.episodes_count} حلقة</span></>}
+    <!-- Bottom gradient overlay -->
+    <div class="absolute inset-0 bg-gradient-to-t from-surface-0 via-surface-0/40 to-transparent opacity-90 transition-opacity duration-500 group-hover:opacity-95"></div>
+
+    <!-- Hover dim layer with subtle violet -->
+    <div class="absolute inset-0 bg-gradient-to-t from-brand-900/70 via-brand-900/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
+
+    <!-- Play button on hover -->
+    <div class="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-500 group-hover:opacity-100">
+      <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-neon-fuchsia text-white shadow-[0_0_30px_-4px_rgba(168,85,247,0.85)] backdrop-blur-md scale-75 group-hover:scale-100 transition-transform duration-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-7 w-7 mr-[-2px] drop-shadow-md">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Bottom info: title + meta -->
+    <div class="absolute inset-x-0 bottom-0 p-3 sm:p-3.5 z-10">
+      <h3 class="line-clamp-2 text-[13px] sm:text-sm font-bold text-white drop-shadow-lg leading-tight">
+        {entry.clean_title}
+      </h3>
+      <div class="mt-1.5 flex items-center gap-1.5 text-[10px] sm:text-[11px] text-gray-300/90">
+        <span class="flex items-center gap-1">
+          <span class="h-1 w-1 rounded-full bg-brand-400"></span>
+          {entry.category_label}
+        </span>
+        {entry.episodes_count > 1 && (
+          <>
+            <span class="text-gray-500">·</span>
+            <span>{entry.episodes_count} حلقة</span>
+          </>
+        )}
+        {entry.has_multiple_seasons && (
+          <>
+            <span class="text-gray-500">·</span>
+            <span>{entry.seasons_count} مواسم</span>
+          </>
+        )}
       </div>
     </div>
   </div>

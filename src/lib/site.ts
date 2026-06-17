@@ -1,13 +1,13 @@
-// Site-wide constants — Cinema Pro brand
+// Site-wide constants — CINMAPRO brand
 export const SITE = {
-  name: 'سينما برو',
-  nameEn: 'Cinema Pro',
-  tagline: 'وجهتك السينمائية العربية بتصميم سينمائي حديث',
+  name: 'CINMAPRO',
+  nameEn: 'CINMAPRO',
+  tagline: 'وجهتك السينمائية الفاخرة لأفضل 100 عمل عالمي',
   description:
-    'سينما برو منصة عربية مختارة بعناية تقدّم الأفلام والمسلسلات والأنمي بجودة عالية ومعلومات واضحة قبل المشاهدة.',
+    'CINMAPRO منصة عربية مختارة بعناية تقدّم أفضل 100 عمل عالمي — أفلام، مسلسلات، وأنمي بجودة عالية ومعلومات واضحة قبل المشاهدة.',
   url: 'https://cinmapro.site',
   locale: 'ar-SA',
-  themeColor: '#0B0F19',
+  themeColor: '#0ea5b7',
   defaultOgImage: '/og-default.png',
 } as const;
 

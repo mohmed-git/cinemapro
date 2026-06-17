@@ -24,7 +24,7 @@ const {
   jsonLd,
 } = Astro.props;
 
-const hasBrandSuffix = title ? /سينما برو|Cinema\s*Pro/i.test(title) : false;
+const hasBrandSuffix = title ? /CINMAPRO|CINMAPRO/i.test(title) : false;
 const fullTitle = title
   ? hasBrandSuffix ? title : `${title} | ${SITE.name}`
   : `${SITE.name} — ${SITE.tagline}`;
@@ -38,7 +38,7 @@ const ogImage = image && image.startsWith('http') ? image : new URL(image, SITE.
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0B0F19" />
+    <meta name="theme-color" content="#060B24" />
     <meta name="generator" content={Astro.generator} />
 
     <!-- Primary -->
@@ -53,11 +53,14 @@ const ogImage = image && image.startsWith('http') ? image : new URL(image, SITE.
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap"
     />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Open Graph -->

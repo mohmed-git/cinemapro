@@ -1,97 +1,224 @@
 ---
-const path = Astro.url.pathname;
-const categories = [
-  { label: 'أفلام', href: '/movies' },
-  { label: 'مسلسلات', href: '/series' },
-  { label: 'أنمي', href: '/anime' },
-  { label: 'الأكثر مشاهدة', href: '/#most-watched' },
-  { label: 'الأحدث', href: '/#latest' },
-  { label: 'المفضلة', href: '/search?q=المفضلة' },
-];
+import { SITE, NAV } from '../lib/site';
+const { currentPath = '' } = Astro.props as { currentPath?: string };
+const path = currentPath || Astro.url.pathname;
+
+// Navigation icons (SVG paths for a richer mobile bottom-bar)
+const navIcons: Record<string, string> = {
+  '/': 'M3 12l2-2m0 0l7-7 7 7m-9 2v8m-4-8h12',
+  '/movies': 'M15.6 11.6L22 7v10l-6.4-4.5v-1zM2 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5z',
+  '/series': 'M2 7h20v13H2zM7 4l5 3 5-3',
+  '/anime': 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  '/search': 'M21 21l-4.3-4.3M11 19a8 8 0 110-16 8 8 0 010 16z',
+};
 ---
 
-<header class="new-site-header" id="site-header" aria-label="رأس الموقع">
-  <aside class="top-announcement" aria-label="إعلان الموقع">
-    <div class="container-app top-announcement__inner">
-      <span>مرحباً بك في سينما برو — تجربة مشاهدة عربية بتصميم جديد بالكامل</span>
-      <a href="/movies">اكتشف أحدث الإضافات</a>
+<header id="site-header" class="fixed top-0 right-0 left-0 z-50 transition-all duration-300">
+  <!-- Glassmorphism background -->
+  <div class="header-bg absolute inset-0 transition-all duration-500"></div>
+
+  <div class="container-app relative flex h-16 lg:h-[72px] items-center justify-between gap-4">
+    <!-- Logo with glowing accent -->
+    <a href="/" class="group relative flex items-center gap-2.5 font-display font-extrabold text-white shrink-0">
+      <!-- Logo mark: Play icon inside gradient circle with neon halo -->
+      <span class="relative flex h-10 w-10 lg:h-11 lg:w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 via-neon-violet to-neon-fuchsia shadow-[0_0_24px_-4px_rgba(168,85,247,0.7)] transition-all duration-500 group-hover:shadow-[0_0_36px_-2px_rgba(217,70,239,0.85)]">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 lg:h-5.5 lg:w-5.5 drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        <span class="absolute inset-0 -z-10 rounded-xl bg-gradient-to-br from-brand-500 to-neon-fuchsia blur-md opacity-50 group-hover:opacity-80 transition-opacity"></span>
+      </span>
+      <span class="text-lg lg:text-xl tracking-wider gradient-text neon-glow">{SITE.name.toUpperCase()}</span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden md:flex items-center gap-1 mx-2">
+      {NAV.filter(n => n.href !== '/search').map((item) => {
+        const active =
+          item.href === '/'
+            ? path === '/' || path === ''
+            : path.startsWith(item.href);
+        return (
+          <a
+            href={item.href}
+            class={`relative rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+              active
+                ? 'text-white'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            {active && (
+              <span class="absolute inset-0 -z-10 rounded-xl bg-gradient-to-br from-brand-600/40 to-neon-fuchsia/30 border border-brand-500/30 shadow-[0_0_18px_-4px_rgba(139,92,246,0.6)]"></span>
+            )}
+            {!active && (
+              <span class="absolute inset-0 -z-10 rounded-xl bg-white/0 transition-colors hover:bg-white/[0.04]"></span>
+            )}
+            {item.label}
+          </a>
+        );
+      })}
+    </nav>
+
+    <!-- Search bar (desktop only) -->
+    <form action="/search" method="GET" class="hidden lg:flex relative items-center flex-1 max-w-sm" role="search">
+      <span class="absolute right-3 text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+      </span>
+      <input
+        type="search"
+        name="q"
+        autocomplete="off"
+        placeholder="ابحث في الأعمال…"
+        class="input-neon !py-2 pr-9 text-sm"
+      />
+    </form>
+
+    <!-- Right side actions -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <!-- Search (mobile/tablet) -->
+      <a href="/search" class="lg:hidden btn-icon" aria-label="بحث">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+      </a>
+
+      <!-- Mobile menu toggle -->
+      <button
+        id="mobile-toggle"
+        class="md:hidden btn-icon"
+        aria-label="فتح القائمة"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+      >
+        <svg id="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 transition-transform duration-300">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
     </div>
-  </aside>
-
-  <div class="sticky-header-shell">
-    <section class="main-header" aria-label="القائمة الرئيسية">
-      <div class="container-app main-header__inner">
-        <a href="/" class="brand-logo" aria-label="سينما برو الرئيسية">
-          <span class="brand-logo__icon" aria-hidden="true">▶</span>
-          <span class="brand-logo__text">سينما برو</span>
-        </a>
-
-        <form action="/search" method="GET" class="header-search" role="search">
-          <label class="sr-only" for="global-search">بحث</label>
-          <span aria-hidden="true">⌕</span>
-          <input id="global-search" name="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم، مسلسل، أنمي..." class="site-search-input" />
-        </form>
-
-        <nav class="header-actions" aria-label="إجراءات سريعة">
-          <a class="header-icon" href="/search" aria-label="بحث">⌕</a>
-          <button class="header-icon" id="menu-toggle" type="button" aria-label="فتح القائمة" aria-controls="compact-menu" aria-expanded="false">☰</button>
-          <a class="header-icon" href="/search?q=جديد" aria-label="إشعارات">◔</a>
-        </nav>
-      </div>
-    </section>
-
-    <nav class="category-strip" aria-label="تصنيفات سريعة">
-      <div class="container-app category-strip__inner">
-        {categories.map((item) => {
-          const normalized = item.href.split('#')[0].split('?')[0];
-          const active = normalized && normalized !== '/' && path.startsWith(normalized);
-          return <a href={item.href} class={`category-pill ${active ? 'is-active' : ''}`}>{item.label}</a>;
-        })}
-      </div>
-    </nav>
-
-    <nav id="compact-menu" class="compact-menu hidden" aria-label="القائمة المختصرة">
-      <div class="container-app compact-menu__inner">
-        {categories.map((item) => <a href={item.href}>{item.label}</a>)}
-      </div>
-    </nav>
   </div>
+
+  <!-- Mobile drawer menu -->
+  <nav
+    id="mobile-menu"
+    class="md:hidden hidden glass-strong border-t border-white/[0.06] animate-slide-down"
+  >
+    <div class="container-app flex flex-col py-4 gap-1.5">
+      <!-- Mobile search -->
+      <form action="/search" method="GET" class="relative mb-3">
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+        </span>
+        <input
+          type="search"
+          name="q"
+          placeholder="ابحث…"
+          class="input-neon pr-10"
+        />
+      </form>
+      {NAV.map((item) => {
+        const active =
+          item.href === '/' ? path === '/' : path.startsWith(item.href);
+        return (
+          <a
+            href={item.href}
+            class={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+              active
+                ? 'text-white bg-gradient-to-l from-brand-600/30 to-neon-fuchsia/20 border border-brand-500/30 shadow-[0_0_18px_-6px_rgba(139,92,246,0.5)]'
+                : 'text-gray-200 hover:bg-white/[0.04] border border-transparent'
+            }`}
+          >
+            {navIcons[item.href] && (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={`h-5 w-5 ${active ? 'text-brand-400' : 'text-gray-400'}`}>
+                <path d={navIcons[item.href]}/>
+              </svg>
+            )}
+            {item.label}
+            {active && <span class="mr-auto h-2 w-2 rounded-full bg-neon-fuchsia shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>}
+          </a>
+        );
+      })}
+    </div>
+  </nav>
 </header>
 
+<!-- Spacer for fixed header -->
+<div class="h-16 lg:h-[72px]"></div>
+
+<!-- Mobile sticky bottom navigation -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-strong border-t border-white/[0.08]" aria-label="القائمة السفلية">
+  <div class="grid grid-cols-5 h-16">
+    {NAV.map((item) => {
+      const active =
+        item.href === '/' ? (path === '/' || path === '') : path.startsWith(item.href);
+      return (
+        <a
+          href={item.href}
+          class={`flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-all relative ${
+            active ? 'text-white' : 'text-gray-400'
+          }`}
+        >
+          {active && (
+            <span class="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-b-full bg-gradient-to-l from-brand-400 to-neon-fuchsia shadow-[0_0_8px_rgba(168,85,247,0.7)]"></span>
+          )}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={active ? '2.4' : '2'} stroke-linecap="round" stroke-linejoin="round" class={`h-[22px] w-[22px] transition-transform ${active ? 'text-brand-400 scale-110' : ''}`}>
+            <path d={navIcons[item.href] || ''}/>
+          </svg>
+          <span>{item.label}</span>
+        </a>
+      );
+    })}
+  </div>
+</nav>
+
 <script>
-  const toggle = document.getElementById('menu-toggle');
-  const menu = document.getElementById('compact-menu');
-  toggle?.addEventListener('click', () => {
+  const btn = document.getElementById('mobile-toggle');
+  const menu = document.getElementById('mobile-menu');
+  const header = document.getElementById('site-header');
+
+  btn?.addEventListener('click', () => {
     const open = menu?.classList.toggle('hidden') === false;
-    toggle.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-expanded', String(open));
   });
+
+  // Close mobile menu on navigation
+  menu?.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      btn?.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  // Header scroll effect — increase blur and add subtle border
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (header) {
+      if (y > 30) {
+        header.classList.add('header-scrolled');
+      } else {
+        header.classList.remove('header-scrolled');
+      }
+    }
+  }, { passive: true });
 </script>
 
 <style>
-  .new-site-header { position: relative; z-index: 50; }
-  .top-announcement { height: 40px; background: #7C3AED; color: #F9FAFB; font-size: 13px; font-weight: 700; }
-  .top-announcement__inner { height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; white-space: nowrap; overflow: hidden; }
-  .top-announcement a { color: #F9FAFB; border-bottom: 1px solid rgba(255,255,255,0.7); }
-  .sticky-header-shell { position: sticky; top: 0; z-index: 50; }
-  .main-header { height: 70px; background: rgba(11,15,25,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.07); }
-  .main-header__inner { height: 70px; display: grid; grid-template-columns: minmax(190px, 1fr) minmax(260px, 400px) minmax(150px, 1fr); align-items: center; gap: 22px; }
-  .brand-logo { display: inline-flex; align-items: center; gap: 12px; justify-self: start; }
-  .brand-logo__icon { color: #2563EB; font-size: 30px; line-height: 1; filter: drop-shadow(0 0 14px rgba(37,99,235,.45)); }
-  .brand-logo__text { color: #F9FAFB; font-size: 28px; font-weight: 900; letter-spacing: -0.03em; }
-  .header-search { width: 400px; max-width: 100%; height: 46px; position: relative; justify-self: center; }
-  .header-search span { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: #9CA3AF; z-index: 2; font-size: 18px; }
-  .header-search input { height: 46px; padding: 0 46px 0 18px; font-size: 14px; }
-  .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-  .header-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: #F9FAFB; background: #111827; border: 1px solid rgba(255,255,255,0.07); font-size: 19px; cursor: pointer; transition: background .2s, color .2s, transform .2s; }
-  .header-icon:hover { background: #1a2235; color: #2563EB; transform: translateY(-2px); }
-  .category-strip { background: #111827; border-bottom: 1px solid rgba(255,255,255,0.07); }
-  .category-strip__inner { min-height: 50px; display: flex; align-items: center; gap: 10px; overflow-x: auto; scrollbar-width: none; }
-  .category-strip__inner::-webkit-scrollbar { display: none; }
-  .category-pill { flex: 0 0 auto; border: 1px solid rgba(255,255,255,0.07); color: #9CA3AF; border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 800; transition: background .2s, color .2s, border-color .2s; }
-  .category-pill:hover, .category-pill.is-active { background: #2563EB; border-color: #2563EB; color: #F9FAFB; }
-  .compact-menu { background: #111827; border-bottom: 1px solid rgba(255,255,255,0.07); }
-  .compact-menu__inner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 12px; padding-bottom: 12px; }
-  .compact-menu a { color: #F9FAFB; background: #0B0F19; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 12px; font-weight: 800; }
-  @media (max-width: 900px) { .main-header__inner { grid-template-columns: 1fr auto; } .header-search { display: none; } .brand-logo__text { font-size: 23px; } }
-  @media (max-width: 480px) { .top-announcement__inner { justify-content: center; } .top-announcement a { display: none; } .main-header__inner { gap: 12px; } .header-actions { gap: 6px; } .header-icon { width: 38px; height: 38px; } }
+  .header-bg {
+    background: rgba(7, 7, 10, 0.55);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .header-scrolled .header-bg {
+    background: rgba(7, 7, 10, 0.88);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border-bottom-color: rgba(167, 139, 250, 0.12);
+    box-shadow: 0 8px 32px -12px rgba(0, 0, 0, 0.6);
+  }
 </style>

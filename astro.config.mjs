@@ -4,7 +4,7 @@ import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
 
 // اسم الموقع ورابطه للنشر
-export const SITE_NAME = 'سينما برو';
+export const SITE_NAME = 'CINMAPRO';
 export const SITE_URL = 'https://cinmapro.site';
 
 function shouldIncludeInSitemap(page) {
