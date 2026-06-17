@@ -1,0 +1,421 @@
+---
+/**
+ * Universal watch page — Cinema Mode redesign.
+ * Episodes & servers are switched client-side via query params:
+ *   /watch/{slug}            -> first episode, first server
+ *   /watch/{slug}?s=1&e=5    -> season 1 episode 5
+ */
+import Base from '../../layouts/Base.astro';
+import { getAllTitles, getTitleBySlug } from '../../lib/titles';
+
+export async function getStaticPaths() {
+  const all = getAllTitles();
+  return all.map((t) => ({ params: { slug: t.slug } }));
+}
+
+const routeSlug = Astro.params.slug as string;
+const title = getTitleBySlug(routeSlug);
+if (!title) {
+  throw new Error(`Watch title not found for slug: ${routeSlug}`);
+}
+
+const categoryLabel =
+  title.category === 'movie' ? 'فيلم' :
+  title.category === 'series' ? 'مسلسل' : 'أنمي';
+
+const firstEpisode = title.seasons[0]?.episodes[0] ?? null;
+const titleData = {
+  slug: title.slug,
+  clean_title: title.clean_title,
+  category: title.category,
+  category_label: title.category_label,
+  poster: title.poster || null,
+  title_url: title.url,
+  quality: title.quality || 'HD',
+  year: title.year || null,
+  duration: title.duration || null,
+  is_movie: title.category === 'movie' && title.episodes_count <= 1,
+  seasons: title.seasons.map((s) => ({
+    season: s.season,
+    episodes: s.episodes.map((e) => ({
+      episode: e.episode,
+      title: e.title || '',
+      runtime: e.runtime || null,
+      servers: e.servers,
+    })),
+  })),
+};
+const dataJson = JSON.stringify(titleData);
+---
+
+<Base
+  title={`مشاهدة ${title.clean_title}`}
+  description={`شاهد ${title.clean_title} مباشرة على سينما برو مع خيارات متعددة للسيرفرات.`}
+  noindex
+>
+  <section class="watch-cinema-page" id="watch-cinema-page">
+    <div class="watch-bg" aria-hidden="true">
+      {title.poster && <img src={title.poster} alt="" loading="eager" referrerpolicy="no-referrer" />}
+      <span></span>
+    </div>
+
+    <div class="watch-shell">
+      <header class="watch-topline" data-cinema-hide>
+        <a class="watch-back" href={title.url}>← العودة للتفاصيل</a>
+        <div class="watch-title-head">
+          <span>{categoryLabel}</span>
+          <h1>{title.clean_title}</h1>
+        </div>
+        <button id="cinema-toggle" class="cinema-toggle" type="button" aria-pressed="false">وضع السينما</button>
+      </header>
+
+      <div class="cinema-layout">
+        <main class="player-column">
+          <article class="cinema-player-card">
+            <div class="player-toolbar" data-cinema-hide>
+              <div>
+                <strong id="watch-subtitle">{title.category_label}</strong>
+                <small id="episode-label">{title.category === 'movie' ? 'الفيلم كاملاً' : 'اختر حلقة للمشاهدة'}</small>
+              </div>
+              <a id="open-external" href="#" target="_blank" rel="noopener noreferrer">فتح السيرفر ↗</a>
+            </div>
+
+            <div class="player-frame-wrap">
+              <div id="player-loading" class="player-loading">
+                <div class="loader-ring"></div>
+                <strong>جاري تحميل المشغّل…</strong>
+                <span>إذا تأخر التشغيل جرّب سيرفراً آخر</span>
+              </div>
+              <iframe
+                id="video-frame"
+                src="about:blank"
+                title={title.clean_title}
+                allowfullscreen
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+                referrerpolicy="no-referrer"
+                loading="eager"
+              ></iframe>
+            </div>
+          </article>
+
+          <section class="watch-info-panel" data-cinema-hide>
+            <div class="watch-info-copy">
+              <span class="watch-chip">{title.quality || 'HD'}</span>
+              {title.year && <span class="watch-chip">{title.year}</span>}
+              <h2>{title.clean_title}</h2>
+              <p>{title.description || 'مشاهدة مباشرة بتصميم سينمائي جديد مع تبديل سريع بين الحلقات والسيرفرات.'}</p>
+              <div id="servers-list" class="server-list" aria-label="قائمة السيرفرات"></div>
+            </div>
+            <nav class="watch-navigation" aria-label="التنقل بين الحلقات">
+              <button id="prev-ep" type="button" class="nav-episode is-disabled">الحلقة السابقة</button>
+              <button id="next-ep" type="button" class="nav-episode is-disabled primary">الحلقة التالية</button>
+            </nav>
+          </section>
+        </main>
+
+        <aside class="episodes-sidebar" data-cinema-hide>
+          <div class="sidebar-head">
+            {title.poster && <img src={title.poster} alt={title.clean_title} loading="lazy" decoding="async" referrerpolicy="no-referrer" />}
+            <div>
+              <span>{title.episodes_count.toLocaleString('ar-EG')} حلقة</span>
+              <h2>قائمة الحلقات</h2>
+              <small id="servers-count">—</small>
+            </div>
+          </div>
+
+          {!titleData.is_movie && (
+            <label class="season-select-wrap" for="watch-season-select">
+              <span>الموسم</span>
+              <select id="watch-season-select">
+                {title.seasons.map((s) => <option value={s.season}>الموسم {s.season} · {s.episodes.length} حلقة</option>)}
+              </select>
+            </label>
+          )}
+
+          <div id="episodes-list" class="episodes-list">
+            {firstEpisode ? <div class="skeleton episode-skeleton"></div> : <p class="empty-watch">لا توجد حلقات متاحة حالياً.</p>}
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <script id="watch-data" type="application/json" set:html={dataJson} />
+
+  <script>
+    type Server = { id: number; label: string; url: string };
+    type Episode = { episode: number; title: string; runtime: number | null; servers: Server[] };
+    type Season = { season: number; episodes: Episode[] };
+    type Data = {
+      slug: string;
+      clean_title: string;
+      category: string;
+      category_label: string;
+      poster: string | null;
+      title_url: string;
+      quality: string;
+      year: string | null;
+      duration: string | null;
+      is_movie: boolean;
+      seasons: Season[];
+    };
+
+    const data: Data = JSON.parse(document.getElementById('watch-data')?.textContent || '{}');
+    const page = document.getElementById('watch-cinema-page')!;
+    const subtitle = document.getElementById('watch-subtitle')!;
+    const frame = document.getElementById('video-frame') as HTMLIFrameElement;
+    const loading = document.getElementById('player-loading')!;
+    const serversList = document.getElementById('servers-list')!;
+    const serversCount = document.getElementById('servers-count')!;
+    const openExternal = document.getElementById('open-external') as HTMLAnchorElement;
+    const prevBtn = document.getElementById('prev-ep') as HTMLButtonElement;
+    const nextBtn = document.getElementById('next-ep') as HTMLButtonElement;
+    const epLabel = document.getElementById('episode-label')!;
+    const episodesList = document.getElementById('episodes-list')!;
+    const seasonSelect = document.getElementById('watch-season-select') as HTMLSelectElement | null;
+    const cinemaToggle = document.getElementById('cinema-toggle') as HTMLButtonElement;
+
+    const flat: { season: number; episode: number }[] = [];
+    for (const s of data.seasons) {
+      for (const e of s.episodes) flat.push({ season: s.season, episode: e.episode });
+    }
+
+    function escapeHtml(s: string): string {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function getParams(): { s: number; e: number } {
+      const q = new URLSearchParams(location.search);
+      const s = parseInt(q.get('s') || '', 10);
+      const e = parseInt(q.get('e') || '', 10);
+      if (!Number.isNaN(s) && !Number.isNaN(e)) return { s, e };
+      const first = flat[0];
+      return first ? { s: first.season, e: first.episode } : { s: 1, e: 1 };
+    }
+
+    function setUrl(s: number, e: number) {
+      const q = new URLSearchParams();
+      q.set('s', String(s));
+      q.set('e', String(e));
+      history.replaceState(null, '', `${location.pathname}?${q.toString()}`);
+    }
+
+    function findEpisode(s: number, e: number): Episode | undefined {
+      return data.seasons.find((x) => x.season === s)?.episodes.find((x) => x.episode === e);
+    }
+
+    function setCurrentServer(url: string) {
+      openExternal.href = url || '#';
+    }
+
+    function renderServers(ep: Episode) {
+      serversList.innerHTML = ep.servers.map((sv, i) => `
+        <button type="button" class="server-choice ${i === 0 ? 'is-active' : ''}" data-url="${escapeHtml(sv.url)}" data-idx="${i}">
+          <span>سيرفر ${i + 1}</span>
+          <strong>${escapeHtml(sv.label)}</strong>
+        </button>
+      `).join('');
+      serversCount.textContent = `${ep.servers.length} سيرفر`;
+      serversList.querySelectorAll<HTMLButtonElement>('.server-choice').forEach((button) => {
+        button.addEventListener('click', () => {
+          serversList.querySelectorAll<HTMLButtonElement>('.server-choice').forEach((b) => b.classList.remove('is-active'));
+          button.classList.add('is-active');
+          const url = button.dataset.url || '';
+          loading.classList.remove('is-hidden');
+          setCurrentServer(url);
+          frame.src = url || 'about:blank';
+        });
+      });
+    }
+
+    function renderEpisodes(activeSeason: number, activeEpisode: number) {
+      const season = data.seasons.find((s) => s.season === activeSeason) || data.seasons[0];
+      if (!season) return;
+      if (seasonSelect) seasonSelect.value = String(season.season);
+      episodesList.innerHTML = season.episodes.map((ep) => `
+        <button type="button" class="sidebar-episode ${ep.episode === activeEpisode ? 'is-current' : ''}" data-s="${season.season}" data-e="${ep.episode}">
+          <span class="episode-big">${ep.episode}</span>
+          <span class="episode-text">
+            <strong>${escapeHtml(ep.title || `الحلقة ${ep.episode}`)}</strong>
+            <small>${ep.runtime ? `${ep.runtime} دقيقة` : `${ep.servers.length} سيرفر`} · مشاهدة</small>
+          </span>
+          <span class="episode-play">▶</span>
+        </button>
+      `).join('');
+      episodesList.querySelectorAll<HTMLButtonElement>('.sidebar-episode').forEach((button) => {
+        button.addEventListener('click', () => loadEpisode(Number(button.dataset.s), Number(button.dataset.e)));
+      });
+    }
+
+    function renderNav(s: number, e: number) {
+      const idx = flat.findIndex((x) => x.season === s && x.episode === e);
+      const prev = idx > 0 ? flat[idx - 1] : null;
+      const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
+
+      if (data.is_movie) {
+        prevBtn.classList.add('is-disabled');
+        nextBtn.classList.add('is-disabled');
+        epLabel.textContent = 'الفيلم كاملاً';
+        return;
+      }
+
+      epLabel.textContent = `الموسم ${s} · الحلقة ${e}`;
+      if (prev) {
+        prevBtn.classList.remove('is-disabled');
+        prevBtn.onclick = () => loadEpisode(prev.season, prev.episode);
+      } else {
+        prevBtn.classList.add('is-disabled');
+        prevBtn.onclick = null;
+      }
+      if (next) {
+        nextBtn.classList.remove('is-disabled');
+        nextBtn.onclick = () => loadEpisode(next.season, next.episode);
+      } else {
+        nextBtn.classList.add('is-disabled');
+        nextBtn.onclick = null;
+      }
+    }
+
+    function loadEpisode(s: number, e: number) {
+      const ep = findEpisode(s, e);
+      if (!ep) return;
+      setUrl(s, e);
+      subtitle.textContent = data.is_movie ? 'مشاهدة مباشرة' : `الموسم ${s} · الحلقة ${e}`;
+      epLabel.textContent = data.is_movie ? 'الفيلم كاملاً' : `الموسم ${s} · الحلقة ${e}`;
+      if (ep.servers.length > 0) {
+        loading.classList.remove('is-hidden');
+        setCurrentServer(ep.servers[0].url);
+        frame.src = ep.servers[0].url;
+      } else {
+        setCurrentServer('');
+        frame.src = 'about:blank';
+      }
+      renderServers(ep);
+      renderEpisodes(s, e);
+      renderNav(s, e);
+      page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    seasonSelect?.addEventListener('change', () => {
+      const selected = Number(seasonSelect.value);
+      const first = data.seasons.find((s) => s.season === selected)?.episodes[0];
+      if (first) loadEpisode(selected, first.episode);
+    });
+
+    frame.addEventListener('load', () => loading.classList.add('is-hidden'));
+    setTimeout(() => loading.classList.add('is-hidden'), 4500);
+
+    cinemaToggle?.addEventListener('click', () => {
+      const active = document.body.classList.toggle('cinema-active');
+      cinemaToggle.setAttribute('aria-pressed', String(active));
+      cinemaToggle.textContent = active ? 'إنهاء وضع السينما' : 'وضع السينما';
+      frame.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && document.body.classList.contains('cinema-active')) {
+        document.body.classList.remove('cinema-active');
+        cinemaToggle.setAttribute('aria-pressed', 'false');
+        cinemaToggle.textContent = 'وضع السينما';
+      }
+    });
+
+    const { s, e } = getParams();
+    loadEpisode(s, e);
+  </script>
+</Base>
+
+<style>
+  :global(body.cinema-active) { overflow: hidden; background: #000; }
+  :global(body.cinema-active .new-site-header),
+  :global(body.cinema-active footer),
+  :global(body.cinema-active [data-cinema-hide]) { display: none !important; }
+  :global(body.cinema-active #main) { background: #000; }
+  :global(body.cinema-active .watch-cinema-page) { min-height: 100vh; padding: 0; background: #000; }
+  :global(body.cinema-active .watch-shell) { width: 100vw; max-width: none; padding: 0; }
+  :global(body.cinema-active .cinema-layout) { display: block; min-height: 100vh; }
+  :global(body.cinema-active .player-column) { width: 100vw; }
+  :global(body.cinema-active .cinema-player-card) { border: 0; border-radius: 0; background: #000; min-height: 100vh; display: grid; place-items: center; }
+  :global(body.cinema-active .player-frame-wrap) { width: 100vw; height: 100vh; border-radius: 0; box-shadow: none; }
+
+  .watch-cinema-page { position: relative; min-height: 100vh; background: #000; color: #F9FAFB; direction: rtl; overflow: hidden; }
+  .watch-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: #000; }
+  .watch-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .14; filter: blur(28px) brightness(.35); transform: scale(1.08); }
+  .watch-bg span { position: absolute; inset: 0; background: radial-gradient(circle at 70% 20%, rgba(37,99,235,.2), transparent 32%), radial-gradient(circle at 16% 80%, rgba(124,58,237,.18), transparent 34%), #000000d9; }
+  .watch-shell { position: relative; z-index: 1; width: min(1880px, 100%); margin: 0 auto; padding: 22px; }
+  .watch-topline { min-height: 74px; display: grid; grid-template-columns: 180px 1fr 150px; gap: 18px; align-items: center; margin-bottom: 18px; }
+  .watch-back, .cinema-toggle { height: 46px; border-radius: 999px; border: 1px solid rgba(255,255,255,.07); background: #111827; color: #F9FAFB; display: inline-flex; align-items: center; justify-content: center; padding: 0 18px; font-weight: 900; cursor: pointer; transition: background .25s, transform .25s; }
+  .watch-back:hover, .cinema-toggle:hover { background: #1a2235; transform: translateY(-2px); }
+  .cinema-toggle { background: linear-gradient(135deg,#2563EB,#7C3AED); border: 0; }
+  .watch-title-head { min-width: 0; text-align: center; }
+  .watch-title-head span { color: #9CA3AF; font-size: 12px; font-weight: 900; letter-spacing: .08em; }
+  .watch-title-head h1 { color: #F9FAFB; font-size: clamp(22px,3vw,34px); font-weight: 900; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cinema-layout { display: grid; grid-template-columns: minmax(0, 75%) minmax(320px, 25%); gap: 18px; align-items: start; }
+  .player-column { min-width: 0; }
+  .cinema-player-card { overflow: hidden; border-radius: 22px; border: 1px solid rgba(255,255,255,.07); background: #0B0F19; box-shadow: 0 30px 80px rgba(0,0,0,.72); }
+  .player-toolbar { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; background: #111827; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .player-toolbar strong { display: block; color: #F9FAFB; font-size: 14px; font-weight: 900; }
+  .player-toolbar small { color: #9CA3AF; font-weight: 800; }
+  .player-toolbar a { color: #F9FAFB; background: rgba(37,99,235,.16); border: 1px solid rgba(37,99,235,.35); border-radius: 999px; padding: 9px 13px; font-size: 12px; font-weight: 900; }
+  .player-frame-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .player-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .player-loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; align-content: center; gap: 12px; background: rgba(0,0,0,.86); color: #F9FAFB; text-align: center; transition: opacity .25s, visibility .25s; }
+  .player-loading.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .player-loading span { color: #9CA3AF; font-size: 13px; }
+  .loader-ring { width: 60px; height: 60px; border-radius: 999px; border: 3px solid rgba(255,255,255,.07); border-top-color: #2563EB; border-left-color: #7C3AED; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .watch-info-panel { display: grid; grid-template-columns: 1fr auto; gap: 20px; margin-top: 18px; padding: 18px; background: #111827; border: 1px solid rgba(255,255,255,.07); border-radius: 22px; }
+  .watch-info-copy h2 { font-size: 24px; font-weight: 900; color: #F9FAFB; margin: 8px 0; }
+  .watch-info-copy p { max-width: 900px; color: #9CA3AF; line-height: 1.9; font-size: 14px; }
+  .watch-chip { display: inline-flex; align-items: center; border-radius: 999px; background: rgba(37,99,235,.16); color: #F9FAFB; border: 1px solid rgba(37,99,235,.28); padding: 5px 10px; font-size: 12px; font-weight: 900; margin-left: 7px; }
+  .server-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .server-choice { border: 1px solid rgba(255,255,255,.07); background: #0B0F19; color: #F9FAFB; border-radius: 14px; padding: 10px 13px; min-width: 120px; text-align: right; cursor: pointer; transition: background .25s, border-color .25s, transform .25s; }
+  .server-choice span { display: block; color: #9CA3AF; font-size: 11px; font-weight: 800; }
+  .server-choice strong { display: block; font-size: 13px; font-weight: 900; }
+  .server-choice:hover, .server-choice.is-active { background: linear-gradient(135deg,#2563EB,#7C3AED); border-color: transparent; transform: translateY(-2px); }
+  .server-choice:hover span, .server-choice.is-active span { color: rgba(249,250,251,.78); }
+  .watch-navigation { display: flex; flex-direction: column; justify-content: center; gap: 12px; min-width: 260px; }
+  .nav-episode { min-height: 58px; border: 1px solid rgba(255,255,255,.07); background: #0B0F19; color: #F9FAFB; border-radius: 16px; font-weight: 900; cursor: pointer; transition: transform .25s, background .25s; }
+  .nav-episode.primary { background: linear-gradient(135deg,#2563EB,#7C3AED); border-color: transparent; }
+  .nav-episode:not(.is-disabled):hover { transform: translateY(-3px); background: #1a2235; }
+  .nav-episode.primary:not(.is-disabled):hover { background: linear-gradient(135deg,#1D4ED8,#6D28D9); }
+  .nav-episode.is-disabled { opacity: .45; pointer-events: none; }
+  .episodes-sidebar { position: sticky; top: 18px; max-height: calc(100vh - 36px); overflow: hidden; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,.07); border-radius: 22px; background: #111827; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .sidebar-head { display: grid; grid-template-columns: 70px 1fr; gap: 13px; align-items: center; padding: 16px; border-bottom: 1px solid rgba(255,255,255,.07); background: linear-gradient(135deg, rgba(37,99,235,.12), rgba(124,58,237,.12)); }
+  .sidebar-head img { width: 70px; height: 92px; object-fit: cover; border-radius: 12px; border: 1px solid rgba(255,255,255,.07); }
+  .sidebar-head span { color: #2563EB; font-size: 12px; font-weight: 900; }
+  .sidebar-head h2 { color: #F9FAFB; font-size: 20px; font-weight: 900; margin-top: 4px; }
+  .sidebar-head small { display: inline-flex; color: #9CA3AF; margin-top: 6px; font-weight: 800; }
+  .season-select-wrap { display: grid; gap: 7px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .season-select-wrap span { color: #9CA3AF; font-size: 12px; font-weight: 900; }
+  .season-select-wrap select { width: 100%; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; background: #0B0F19; color: #F9FAFB; padding: 12px; font-family: 'Cairo', sans-serif; font-weight: 900; outline: none; }
+  .episodes-list { overflow: auto; padding: 12px; display: grid; gap: 10px; scrollbar-width: thin; scrollbar-color: #2563EB #0B0F19; }
+  .sidebar-episode { width: 100%; display: grid; grid-template-columns: 54px 1fr 36px; gap: 10px; align-items: center; text-align: right; border: 1px solid rgba(255,255,255,.07); background: #0B0F19; color: #F9FAFB; border-radius: 16px; padding: 10px; cursor: pointer; transition: background .25s, transform .25s, border-color .25s; }
+  .sidebar-episode:hover, .sidebar-episode.is-current { background: #1a2235; border-color: rgba(37,99,235,.42); transform: translateY(-2px); }
+  .episode-big { width: 54px; height: 54px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#2563EB,#7C3AED); color: #F9FAFB; font-size: 24px; font-weight: 900; }
+  .episode-text { min-width: 0; display: grid; gap: 3px; }
+  .episode-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 900; }
+  .episode-text small { color: #9CA3AF; font-size: 11px; font-weight: 800; }
+  .episode-play { width: 34px; height: 34px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: rgba(37,99,235,.14); color: #2563EB; }
+  .episode-skeleton { height: 78px; border-radius: 16px; }
+  .empty-watch { color: #9CA3AF; text-align: center; padding: 24px; }
+
+  @media (max-width: 1180px) {
+    .watch-topline { grid-template-columns: 1fr; text-align: center; }
+    .cinema-layout { grid-template-columns: 1fr; }
+    .episodes-sidebar { position: relative; top: auto; max-height: 620px; }
+    .watch-info-panel { grid-template-columns: 1fr; }
+    .watch-navigation { min-width: 0; flex-direction: row; }
+    .nav-episode { flex: 1; }
+  }
+  @media (max-width: 640px) {
+    .watch-shell { padding: 10px; }
+    .watch-title-head h1 { white-space: normal; font-size: 22px; }
+    .watch-topline { min-height: auto; }
+    .player-toolbar { align-items: flex-start; flex-direction: column; }
+    .watch-navigation { flex-direction: column; }
+    .sidebar-head { grid-template-columns: 56px 1fr; }
+    .sidebar-head img { width: 56px; height: 76px; }
+  }
+</style>

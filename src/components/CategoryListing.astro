@@ -1,0 +1,141 @@
+---
+import PosterCard from './PosterCard.astro';
+import Pagination from './Pagination.astro';
+import type { TitleIndexEntry } from '../lib/types';
+import type { YearBucket } from '../lib/filters';
+
+interface Props {
+  label: string;
+  icon: string;
+  eyebrow: string;
+  description: string;
+  basePath: string;
+  items: TitleIndexEntry[];
+  slice: TitleIndexEntry[];
+  current: number;
+  totalPages: number;
+  pageHref: (p: number) => string;
+  visibleGenres: string[];
+  genreCounts: Map<string, number>;
+  yearBuckets: YearBucket[];
+}
+
+const { label, icon, eyebrow, description, basePath, items, slice, current, totalPages, pageHref, visibleGenres, genreCounts, yearBuckets } = Astro.props as Props;
+---
+
+<section class="category-hero">
+  <div class="container-app category-hero__inner">
+    <div>
+      <p class="category-hero__eyebrow">{eyebrow}</p>
+      <h1><span>{icon}</span> {label}</h1>
+      <p>{description}</p>
+    </div>
+    <aside class="category-count-card">
+      <strong>{items.length.toLocaleString('ar-EG')}</strong>
+      <span>إجمالي الأعمال</span>
+    </aside>
+  </div>
+</section>
+
+<section class="container-app py-8 md:py-10">
+  <div id="filter-bar" class="category-filter-panel" data-current-page={current}>
+    <div class="filter-head">
+      <h2>فلاتر التصفح</h2>
+      <span id="result-count">{items.length.toLocaleString('ar-EG')}</span>
+      <button id="clear-filters" type="button" class="reset-filter hidden">إعادة تعيين</button>
+    </div>
+
+    <div class="filter-row" data-filter-group="genre">
+      <span class="filter-label">النوع</span>
+      <button type="button" class="filter-chip filter-chip--active" data-value="">الكل</button>
+      {visibleGenres.map((g) => (
+        <button type="button" class="filter-chip" data-value={g}>{g}<span class="filter-chip__count">{genreCounts.get(g) || 0}</span></button>
+      ))}
+    </div>
+
+    <div class="filter-row" data-filter-group="year">
+      <span class="filter-label">السنة</span>
+      <button type="button" class="filter-chip filter-chip--active" data-value="">الكل</button>
+      {yearBuckets.map((b) => <button type="button" class="filter-chip" data-value={b.key}>{b.label}</button>)}
+    </div>
+
+    <div class="filter-row" aria-label="فلاتر إضافية شكلية">
+      <span class="filter-label">التقييم</span>
+      <button type="button" class="filter-chip">+7</button>
+      <button type="button" class="filter-chip">+8</button>
+      <span class="filter-label">الدولة</span>
+      <button type="button" class="filter-chip">الكل</button>
+      <span class="filter-label">اللغة</span>
+      <button type="button" class="filter-chip">مترجم</button>
+      <span class="filter-label">الترتيب</span>
+      <button type="button" class="filter-chip">الأحدث</button>
+    </div>
+  </div>
+
+  <div class="my-5 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5" aria-hidden="true">
+    {Array.from({ length: 5 }).map(() => <div class="skeleton hidden aspect-[2/3] rounded-[10px] md:block"></div>)}
+  </div>
+
+  <div id="results-server" class="content-grid-new">
+    {slice.map((entry, i) => <PosterCard entry={entry} priority={i < 6} />)}
+  </div>
+  <div id="results-filtered" class="hidden content-grid-new"></div>
+
+  <div id="empty-state" class="hidden py-20 text-center">
+    <h3 class="text-xl font-black text-[#F9FAFB]">لا توجد نتائج</h3>
+    <p class="mt-2 text-[#9CA3AF]">جرّب تغيير الفلاتر أو إعادة تعيينها</p>
+  </div>
+
+  <div id="server-pagination"><Pagination current={current} total={totalPages} hrefFor={pageHref} /></div>
+</section>
+
+<script type="application/json" id="all-items-data" set:html={JSON.stringify(items)} />
+<script>
+  type Entry = { slug:string; clean_title:string; category_label:string; poster:string|null; seasons_count:number; episodes_count:number; url:string; has_multiple_seasons:boolean; year?:string|null; genres?:string[] };
+  const PAGE_SIZE = 36;
+  const itemsData: Entry[] = JSON.parse(document.getElementById('all-items-data')!.textContent || '[]');
+  const filterBar = document.getElementById('filter-bar')!;
+  const resultsServer = document.getElementById('results-server')!;
+  const resultsFiltered = document.getElementById('results-filtered')!;
+  const emptyState = document.getElementById('empty-state')!;
+  const serverPagination = document.getElementById('server-pagination')!;
+  const resultCount = document.getElementById('result-count')!;
+  const clearBtn = document.getElementById('clear-filters')!;
+  let activeGenre = new URL(location.href).searchParams.get('genre') || '';
+  let activeYear = new URL(location.href).searchParams.get('year') || '';
+  let filterPage = Number(new URL(location.href).searchParams.get('p') || '1') || 1;
+  function esc(s:string){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+  function rating(slug:string){let h=0; for(let i=0;i<slug.length;i++) h=(h*31+slug.charCodeAt(i))>>>0; return (7+(h%23)/10).toFixed(1)}
+  function matchesYear(e:Entry,key:string){ if(!key) return true; if(key.endsWith('s')){const d=parseInt(key,10); const y=Number(e.year); return Number.isFinite(y)&&y>=d&&y<d+10;} return String(e.year)===key; }
+  function filtered(){return itemsData.filter(e=>(!activeGenre||(e.genres||[]).includes(activeGenre))&&matchesYear(e,activeYear));}
+  function renderCard(e:Entry){const img=e.poster?`<img src="${esc(e.poster)}" alt="${esc(e.clean_title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" class="h-full w-full object-cover transition-transform duration-500"/>`:`<div class="skeleton flex h-full w-full items-center justify-center p-4 text-center text-sm text-gray-400">${esc(e.clean_title)}</div>`;return `<a href="${esc(e.url)}" class="group poster-card"><div class="relative aspect-[2/3] w-full overflow-hidden bg-surface-2">${img}<span class="card-genre-badge">HD</span><span class="card-rating">★ ${rating(e.slug)}</span><div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-[#0B0F19]/25 to-transparent"></div><div class="card-hover-actions"><span class="play-circle">▶</span><span class="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white/[0.07] bg-[#111827] text-xl">＋</span></div><div class="absolute inset-x-0 bottom-0 z-10 p-3"><h3 class="line-clamp-2 text-[13px] font-extrabold text-[#F9FAFB]">${esc(e.clean_title)}</h3><div class="mt-1.5 flex gap-1.5 text-[10px] font-bold text-[#9CA3AF]"><span>${esc(e.category_label)}</span>${e.year?`<span>•</span><span>${esc(e.year)}</span>`:''}</div></div></div></a>`}
+  function syncURL(){const p=new URLSearchParams(); if(activeGenre)p.set('genre',activeGenre); if(activeYear)p.set('year',activeYear); if(filterPage>1)p.set('p',String(filterPage)); history.replaceState({},'',location.pathname+(p.toString()?`?${p}`:''));}
+  function rerender(){const arr=filtered(); const has=!!activeGenre||!!activeYear; resultCount.textContent=arr.length.toLocaleString('ar-EG'); clearBtn.classList.toggle('hidden',!has); if(!has){resultsServer.classList.remove('hidden'); resultsFiltered.classList.add('hidden'); serverPagination.classList.remove('hidden'); emptyState.classList.add('hidden'); syncURL(); return;} resultsServer.classList.add('hidden'); serverPagination.classList.add('hidden'); if(!arr.length){resultsFiltered.classList.add('hidden'); emptyState.classList.remove('hidden'); syncURL(); return;} emptyState.classList.add('hidden'); resultsFiltered.classList.remove('hidden'); resultsFiltered.innerHTML=arr.slice((filterPage-1)*PAGE_SIZE,filterPage*PAGE_SIZE).map(renderCard).join(''); syncURL();}
+  function setActive(group:string,value:string){ if(group==='genre')activeGenre=value; if(group==='year')activeYear=value; filterPage=1; filterBar.querySelectorAll<HTMLButtonElement>(`[data-filter-group="${group}"] button`).forEach(b=>b.classList.toggle('filter-chip--active',(b.dataset.value||'')===value)); rerender(); }
+  filterBar.querySelectorAll<HTMLButtonElement>('[data-filter-group] button').forEach(b=>b.addEventListener('click',()=>setActive(b.parentElement!.dataset.filterGroup!,b.dataset.value||'')));
+  clearBtn.addEventListener('click',()=>{activeGenre=''; activeYear=''; filterBar.querySelectorAll<HTMLButtonElement>('[data-filter-group] button').forEach(b=>b.classList.toggle('filter-chip--active',(b.dataset.value||'')==='')); rerender();});
+  if(activeGenre||activeYear) rerender();
+</script>
+
+<style>
+  .category-hero { background: linear-gradient(135deg, #111827, #0B0F19); border-bottom: 1px solid rgba(255,255,255,.07); }
+  .category-hero__inner { min-height: 270px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 42px; padding-bottom: 42px; }
+  .category-hero__eyebrow { color: #2563EB; font-weight: 900; letter-spacing: .18em; font-size: 12px; margin-bottom: 12px; }
+  .category-hero h1 { color: #F9FAFB; font-size: clamp(42px, 6vw, 56px); font-weight: 900; line-height: 1.1; }
+  .category-hero p { max-width: 680px; color: #9CA3AF; line-height: 1.9; margin-top: 14px; }
+  .category-count-card { min-width: 190px; border-radius: 22px; background: #111827; border: 1px solid rgba(255,255,255,.07); padding: 24px; text-align: center; }
+  .category-count-card strong { display: block; color: #F9FAFB; font-size: 42px; font-weight: 900; }
+  .category-count-card span { color: #9CA3AF; font-weight: 800; }
+  .category-filter-panel { background: #111827; border: 1px solid rgba(255,255,255,.07); border-radius: 22px; padding: 18px; margin-bottom: 26px; }
+  .filter-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-head h2 { color: #F9FAFB; font-size: 18px; font-weight: 900; }
+  .filter-head span { background: #0B0F19; color: #F9FAFB; border-radius: 999px; padding: 5px 12px; font-weight: 900; }
+  .reset-filter { margin-right: auto; color: #F9FAFB; background: #7C3AED; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 900; cursor: pointer; }
+  .filter-row { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding: 8px 0; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-label { color: #9CA3AF; font-weight: 900; font-size: 12px; flex: 0 0 auto; }
+  .content-grid-new { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  @media (min-width: 768px) { .content-grid-new { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; } }
+  @media (min-width: 1280px) { .content-grid-new { grid-template-columns: repeat(5,minmax(0,1fr)); } }
+  @media (max-width: 720px) { .category-hero__inner { align-items: flex-start; flex-direction: column; } .category-count-card { width: 100%; } }
+</style>

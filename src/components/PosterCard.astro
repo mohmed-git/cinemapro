@@ -1,0 +1,53 @@
+---
+import type { TitleIndexEntry } from '../lib/types';
+
+interface Props {
+  entry: TitleIndexEntry;
+  priority?: boolean;
+  size?: 'default' | 'large';
+}
+
+const { entry, priority = false } = Astro.props;
+const hasPoster = !!entry.poster;
+const rating = (() => {
+  let h = 0;
+  for (let i = 0; i < entry.slug.length; i++) h = (h * 31 + entry.slug.charCodeAt(i)) >>> 0;
+  return (7 + (h % 23) / 10).toFixed(1);
+})();
+const status = priority ? 'NEW' : 'HD';
+---
+
+<a href={entry.url} class="group poster-card animate-fade-in" aria-label={`${entry.category_label}: ${entry.clean_title}`}>
+  <div class="relative aspect-[2/3] w-full overflow-hidden bg-surface-2">
+    {hasPoster ? (
+      <img
+        src={entry.poster!}
+        alt={entry.clean_title}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        referrerpolicy="no-referrer"
+        class="h-full w-full object-cover transition-transform duration-500 ease-out"
+      />
+    ) : (
+      <div class="skeleton flex h-full w-full items-center justify-center p-4 text-center text-sm text-gray-400">{entry.clean_title}</div>
+    )}
+
+    <span class="card-genre-badge">{status}</span>
+    <span class="card-rating">★ {rating}</span>
+
+    <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-[#0B0F19]/25 to-transparent"></div>
+    <div class="card-hover-actions">
+      <span class="play-circle" aria-hidden="true">▶</span>
+      <span class="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white/[0.07] bg-[#111827] text-xl">＋</span>
+    </div>
+
+    <div class="absolute inset-x-0 bottom-0 z-10 p-3">
+      <h3 class="line-clamp-2 text-[13px] font-extrabold leading-tight text-[#F9FAFB] sm:text-sm">{entry.clean_title}</h3>
+      <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[#9CA3AF] sm:text-[11px]">
+        <span>{entry.category_label}</span>
+        {entry.year && <><span>•</span><span>{entry.year}</span></>}
+        {entry.episodes_count > 1 && <><span>•</span><span>{entry.episodes_count} حلقة</span></>}
+      </div>
+    </div>
+  </div>
+</a>

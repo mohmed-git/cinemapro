@@ -1,0 +1,214 @@
+---
+import Base from '../layouts/Base.astro';
+import PosterCard from '../components/PosterCard.astro';
+import { getAllTitles, getTitlesByCategory, toIndexEntry } from '../lib/titles';
+import { SITE } from '../lib/site';
+
+const all = getAllTitles();
+const movies = getTitlesByCategory('movie');
+const series = getTitlesByCategory('series');
+const anime = getTitlesByCategory('anime');
+function pick(arr: ReturnType<typeof getAllTitles>, n: number) { return [...arr].filter((t) => t.poster).sort((a,b) => b.episodes_count - a.episodes_count).slice(0,n); }
+function hashRating(slug: string) { let h = 0; for (let i=0;i<slug.length;i++) h=(h*31+slug.charCodeAt(i))>>>0; return (7+(h%23)/10).toFixed(1); }
+function metaType(t: any) { return t.category === 'movie' ? 'فيلم' : t.category === 'series' ? 'مسلسل' : 'أنمي'; }
+const heroItems = pick([...movies, ...series, ...anime], 5);
+const latest = all.slice(0, 9).map(toIndexEntry);
+const mostWatched = pick(all, 10);
+const animeGrid = pick(anime, 8).map(toIndexEntry);
+const moodItems = all.slice(0, 24).map(toIndexEntry);
+const moodPalette = [
+  ['أكشن','💥','#2563EB'],
+  ['رومانسي','💜','#7C3AED'],
+  ['رعب','👁','#111827'],
+  ['كوميدي','☺','#2563EB'],
+  ['خيال علمي','🚀','#7C3AED'],
+  ['إثارة','⚡','#111827']
+];
+function moodTags(item: ReturnType<typeof toIndexEntry>, index: number) {
+  const source = `${item.clean_title} ${(item.genres || []).join(' ')} ${item.category_label}`;
+  const tags = new Set<string>();
+  if (/action|أكشن|قتال|حرب|مغامرة/i.test(source)) tags.add('أكشن');
+  if (/romance|رومان|دراما|حب/i.test(source)) tags.add('رومانسي');
+  if (/horror|رعب|غموض/i.test(source)) tags.add('رعب');
+  if (/comedy|كوميد|عائلي/i.test(source)) tags.add('كوميدي');
+  if (/sci|fantasy|خيال|فضاء|أنمي/i.test(source)) tags.add('خيال علمي');
+  if (/thriller|إثارة|جريمة|تشويق/i.test(source)) tags.add('إثارة');
+  tags.add(moodPalette[index % moodPalette.length][0]);
+  return [...tags];
+}
+const stats = { movies: movies.length, series: series.length, anime: anime.length, total: all.length };
+const first = heroItems[0];
+const jsonLd = { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE.name, url: `${SITE.url}/`, description: SITE.description, inLanguage: 'ar' };
+---
+
+<Base title={null} description={SITE.description} jsonLd={jsonLd}>
+  <section class="home-hero split-hero">
+    <div class="hero-particles"></div><div class="hero-waves"></div>
+    <div class="container-app split-hero__grid">
+      <article class="split-hero__copy">
+        <p class="hero-eyebrow">واجهة سينمائية جديدة</p>
+        <h1 class="typing-title">{first?.clean_title || 'سينما برو'}</h1>
+        <p class="hero-description">{first?.description?.slice(0, 210) || 'اكتشف أحدث الأفلام والمسلسلات والأنمي بتجربة عربية سريعة ومختلفة.'}</p>
+        <div class="hero-badges">
+          <span>{first ? metaType(first) : 'فيلم'}</span>
+          <span>{first?.year || '2026'}</span>
+          <span>★ {first ? hashRating(first.slug) : '8.5'}</span>
+          <span>{first?.duration || (first?.episodes_count ? `${first.episodes_count} حلقة` : '120 دقيقة')}</span>
+        </div>
+        <div class="hero-actions">
+          <a href={first?.url || '/movies'} class="btn-primary">▶ مشاهدة الآن</a>
+          <a href="/search?q=المفضلة" class="btn-secondary">＋ أضف للقائمة</a>
+        </div>
+        <div class="hero-dots" aria-label="مؤشرات العروض">
+          {heroItems.map((_, i) => <button class={i === 0 ? 'is-active' : ''} aria-label={`عرض ${i + 1}`}></button>)}
+        </div>
+      </article>
+      <aside class="split-hero__poster">
+        {first?.poster && <img src={first.poster} alt={first.clean_title} loading="eager" referrerpolicy="no-referrer" />}
+      </aside>
+    </div>
+  </section>
+
+  <section id="latest" class="container-app home-section">
+    <header class="section-head"><h2 class="section-title">الأحدث إضافةً</h2><p class="section-kicker">بطاقات Landscape بتوزيع جديد ومعلومات مختصرة</p></header>
+    <div class="landscape-grid">
+      {latest.slice(0, 9).map((item, i) => (
+        <a href={item.url} class="landscape-card" data-mood={item.genres?.[0] || item.category_label}>
+          <div class="landscape-img">
+            {item.poster ? <img src={item.poster} alt={item.clean_title} loading="lazy" referrerpolicy="no-referrer" /> : <div class="skeleton h-full w-full"></div>}
+          </div>
+          <div class="landscape-info">
+            <h3>{item.clean_title}</h3>
+            <p>{item.category_label}{item.year ? ` · ${item.year}` : ''}</p>
+            <div class="stars">★★★★★ <span>{hashRating(item.slug)}</span></div>
+            <span class="mini-play">▶</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section id="most-watched" class="container-app home-section">
+    <header class="section-head"><h2 class="section-title">الأكثر مشاهدة</h2><p class="section-kicker">ترتيب عمودي مرقم من 1 إلى 10</p></header>
+    <ol class="ranking-list">
+      {mostWatched.map((item, i) => (
+        <li>
+          <a href={item.url} class="ranking-card">
+            <span class="ranking-bg">{i + 1}</span>
+            <span class="ranking-number">{i + 1}</span>
+            {item.poster && <img src={item.poster} alt={item.clean_title} loading="lazy" referrerpolicy="no-referrer" />}
+            <span class="ranking-title"><strong>{item.clean_title}</strong><small>{metaType(item)} · ★ {hashRating(item.slug)}</small></span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="container-app home-section">
+    <header class="section-head"><h2 class="section-title">قسم الأنمي</h2><p class="section-kicker">Grid مربع 4×2 مع Gradient سفلي</p></header>
+    <div class="anime-square-grid">
+      {animeGrid.map((item) => (
+        <a href={item.url} class="anime-square-card">
+          {item.poster && <img src={item.poster} alt={item.clean_title} loading="lazy" referrerpolicy="no-referrer" />}
+          <span>{item.category_label}</span>
+          <h3>{item.clean_title}</h3>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="container-app home-section mood-section">
+    <header class="section-head"><h2 class="section-title">اختر مزاجك</h2><p class="section-kicker">اضغط على أي مزاج لتصفية المحتوى فوراً</p></header>
+    <div class="mood-pills" id="mood-pills">
+      {moodPalette.map(([name, emoji, color]) => <button type="button" data-mood={name} style={`--mood:${color}`}>{emoji}<span>{name}</span></button>)}
+    </div>
+    <div id="mood-grid" class="mood-grid">
+      {moodItems.map((item, i) => (
+        <div class={`mood-card ${i >= 12 ? 'is-hidden' : ''}`} data-moods={moodTags(item, i).join('|')}>
+          <PosterCard entry={item} priority={i < 2} />
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="container-app stats-strip">
+    <div><strong>{stats.total.toLocaleString('ar-EG')}</strong><span>إجمالي الأعمال</span></div>
+    <div><strong>{stats.movies.toLocaleString('ar-EG')}</strong><span>فيلم</span></div>
+    <div><strong>{stats.series.toLocaleString('ar-EG')}</strong><span>مسلسل</span></div>
+    <div><strong>{stats.anime.toLocaleString('ar-EG')}</strong><span>أنمي</span></div>
+  </section>
+
+  <script>
+    const moodPills = document.getElementById('mood-pills');
+    const moodCards = Array.from(document.querySelectorAll('[data-moods]'));
+    moodPills?.querySelectorAll('button').forEach((btn) => btn.addEventListener('click', () => {
+      const mood = btn.getAttribute('data-mood') || '';
+      moodPills.querySelectorAll('button').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      let shown = 0;
+      moodCards.forEach((card) => {
+        const moods = (card.getAttribute('data-moods') || '').split('|');
+        const match = moods.includes(mood) && shown < 12;
+        card.classList.toggle('is-hidden', !match);
+        if (match) shown += 1;
+      });
+      document.getElementById('mood-grid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+  </script>
+</Base>
+
+<style>
+  .home-hero { position: relative; overflow: hidden; min-height: calc(88vh - 160px); background: #0B0F19; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .split-hero__grid { min-height: calc(88vh - 160px); display: grid; grid-template-columns: 55% 45%; align-items: center; gap: 34px; padding-top: 48px; padding-bottom: 60px; }
+  .split-hero__copy { position: relative; z-index: 2; }
+  .hero-eyebrow { color: #2563EB; font-size: 13px; font-weight: 900; letter-spacing: .18em; margin-bottom: 18px; }
+  .split-hero h1 { color: #F9FAFB; font-size: clamp(38px, 5vw, 48px); font-weight: 900; line-height: 1.25; max-width: 100%; }
+  .hero-description { max-width: 690px; color: #9CA3AF; line-height: 2; margin-top: 20px; font-size: 16px; }
+  .hero-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .hero-badges span { border: 1px solid rgba(255,255,255,.07); background: #111827; color: #F9FAFB; border-radius: 999px; padding: 8px 14px; font-weight: 900; font-size: 13px; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+  .hero-dots { display: flex; gap: 8px; margin-top: 38px; justify-content: flex-start; }
+  .hero-dots button { width: 11px; height: 11px; border-radius: 999px; border: 0; background: #111827; cursor: pointer; }
+  .hero-dots .is-active { width: 44px; background: linear-gradient(90deg, #2563EB, #7C3AED); }
+  .split-hero__poster { position: relative; display: flex; justify-content: center; }
+  .split-hero__poster img { width: min(390px, 82vw); aspect-ratio: 2/3; object-fit: cover; border-radius: 34px 90px 34px 90px; border: 1px solid rgba(255,255,255,.07); box-shadow: 0 32px 80px rgba(0,0,0,.6); transform: rotate(-2deg); }
+  .home-section { padding-top: 58px; padding-bottom: 20px; }
+  .section-head { margin-bottom: 34px; }
+  .landscape-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+  .landscape-card { display: grid; grid-template-columns: 160px 1fr; gap: 14px; align-items: center; min-height: 116px; background: #111827; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 12px; transition: transform .25s, background .25s, box-shadow .25s; }
+  .landscape-card:hover { background: #1a2235; transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+  .landscape-img { width: 160px; height: 90px; border-radius: 10px; overflow: hidden; }
+  .landscape-img img { width: 100%; height: 100%; object-fit: cover; }
+  .landscape-info { position: relative; min-width: 0; }
+  .landscape-info h3 { color: #F9FAFB; font-weight: 900; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .landscape-info p, .ranking-title small { color: #9CA3AF; font-size: 12px; font-weight: 700; margin-top: 5px; }
+  .stars { color: #2563EB; font-size: 12px; margin-top: 8px; font-weight: 900; } .stars span { color: #F9FAFB; }
+  .mini-play { position: absolute; left: 0; bottom: 0; width: 30px; height: 30px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#2563EB,#7C3AED); color: #F9FAFB; font-size: 12px; }
+  .ranking-list { display: grid; gap: 12px; counter-reset: ranking; }
+  .ranking-card { position: relative; min-height: 98px; display: flex; align-items: center; gap: 16px; overflow: hidden; background: #111827; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; padding: 12px 18px; transition: background .25s, transform .25s; }
+  .ranking-card:hover { background: #1a2235; transform: translateX(-6px); }
+  .ranking-bg { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); font-size: 80px; font-weight: 900; color: rgba(249,250,251,.05); line-height: 1; }
+  .ranking-number { position: relative; z-index: 2; width: 58px; color: #2563EB; font-size: 44px; font-weight: 900; }
+  .ranking-card img { position: relative; z-index: 2; width: 56px; height: 76px; object-fit: cover; border-radius: 8px; }
+  .ranking-title { position: relative; z-index: 2; display: grid; gap: 6px; } .ranking-title strong { color: #F9FAFB; font-weight: 900; }
+  .anime-square-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+  .anime-square-card { position: relative; aspect-ratio: 1/1; overflow: hidden; border-radius: 16px; background: #111827; border: 1px solid rgba(255,255,255,.07); transition: transform .25s, box-shadow .25s; }
+  .anime-square-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+  .anime-square-card img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+  .anime-square-card:hover img { transform: scale(1.08); }
+  .anime-square-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top,#0B0F19,transparent 65%); }
+  .anime-square-card span { position: absolute; top: 10px; right: 10px; z-index: 2; background: #2563EB; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 900; }
+  .anime-square-card h3 { position: absolute; right: 12px; left: 12px; bottom: 12px; z-index: 2; color: #F9FAFB; font-weight: 900; line-height: 1.4; }
+  .mood-pills { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+  .mood-pills button { flex: 0 0 auto; width: 112px; height: 112px; border: 1px solid rgba(255,255,255,.07); border-radius: 999px; background: var(--mood); color: #F9FAFB; display: grid; place-items: center; align-content: center; gap: 7px; font-size: 28px; cursor: pointer; transition: transform .25s, box-shadow .25s; }
+  .mood-pills span { display: block; font-size: 13px; font-weight: 900; }
+  .mood-pills button:hover, .mood-pills .is-active { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+  .mood-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 14px; margin-top: 28px; }
+  .mood-card.is-hidden { display: none; }
+  .stats-strip { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; padding-top: 50px; padding-bottom: 70px; }
+  .stats-strip div { background: #111827; border: 1px solid rgba(255,255,255,.07); border-radius: 18px; text-align: center; padding: 24px; }
+  .stats-strip strong { display: block; color: #F9FAFB; font-size: 34px; font-weight: 900; } .stats-strip span { color: #9CA3AF; font-weight: 800; }
+  @media (max-width: 1100px) { .landscape-grid { grid-template-columns: 1fr 1fr; } .mood-grid { grid-template-columns: repeat(4,1fr); } }
+  @media (max-width: 800px) { .split-hero__grid { grid-template-columns: 1fr; } .split-hero__poster { order: -1; } .landscape-grid, .anime-square-grid, .stats-strip { grid-template-columns: 1fr 1fr; } .mood-grid { grid-template-columns: repeat(3,1fr); } }
+  @media (max-width: 540px) { .landscape-grid, .anime-square-grid, .stats-strip { grid-template-columns: 1fr; } .landscape-card { grid-template-columns: 130px 1fr; } .landscape-img { width: 130px; height: 74px; } .mood-grid { grid-template-columns: repeat(2,1fr); } }
+</style>

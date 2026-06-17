@@ -1,0 +1,8 @@
+# Cloudflare Pages redirects for old indexed episode pages.
+# Episodes were merged into season pages, so legacy episode URLs should not 404.
+
+/series/:slug/season/:season/episode/:episode /series/:slug/season/:season 301
+/series/:slug/season/:season/episode/:episode/ /series/:slug/season/:season 301
+
+/anime/:slug/season/:season/episode/:episode /anime/:slug/season/:season 301
+/anime/:slug/season/:season/episode/:episode/ /anime/:slug/season/:season 301

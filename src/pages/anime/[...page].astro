@@ -1,0 +1,43 @@
+---
+import Base from '../../layouts/Base.astro';
+import CategoryListing from '../../components/CategoryListing.astro';
+import { getTitlesByCategory, toIndexEntry } from '../../lib/titles';
+import { PAGE_SIZE, PRIMARY_GENRES, buildYearBuckets, buildGenreCounts } from '../../lib/filters';
+
+export async function getStaticPaths() {
+  const items = getTitlesByCategory('anime').map(toIndexEntry);
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const paths: any[] = [{ params: { page: undefined }, props: { current: 1 } }];
+  for (let p = 1; p <= totalPages; p++) paths.push({ params: { page: `page/${p}` }, props: { current: p } });
+  return paths;
+}
+
+const { current } = Astro.props as { current: number };
+const all = getTitlesByCategory('anime');
+const items = all.map(toIndexEntry);
+const yearBuckets = buildYearBuckets(all);
+const genreCounts = buildGenreCounts(all);
+const visibleGenres = PRIMARY_GENRES.filter((g) => (genreCounts.get(g) || 0) > 0);
+const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+const start = (current - 1) * PAGE_SIZE;
+const slice = items.slice(start, start + PAGE_SIZE);
+function pageHref(p: number): string { return p === 1 ? '/anime' : `/anime/page/${p}`; }
+---
+
+<Base title={current > 1 ? `أنمي مترجم اون لاين مجاناً — صفحة ${current}` : 'أنمي مترجم اون لاين مجاناً'} description={`تصفح ${items.length} عملًا أنمي في سينما برو.`}>
+  <CategoryListing
+    label="عالم الأنمي"
+    icon="⚡"
+    eyebrow="ANIME COLLECTION"
+    description={`قسم أنمي بتصميم Hero متدرج وشبكة جديدة تعرض ${items.length.toLocaleString('ar-EG')} عمل مع فلاتر سريعة.`}
+    basePath="/anime"
+    items={items}
+    slice={slice}
+    current={current}
+    totalPages={totalPages}
+    pageHref={pageHref}
+    visibleGenres={visibleGenres}
+    genreCounts={genreCounts}
+    yearBuckets={yearBuckets}
+  />
+</Base>
