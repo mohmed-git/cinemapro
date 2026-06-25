@@ -97,6 +97,15 @@ const ogImageAlt = `${fullTitle} - ${SITE.name}`;
       <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     )}
 
+    <!-- ═══ Google Analytics ═══ -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-H83JSFFRR5" is:inline></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-H83JSFFRR5');
+    </script>
+
     <!-- ═══ Adsterra: Popunder (مرة واحدة لكل جلسة) ═══ -->
     <script src="https://pl29732227.effectivecpmnetwork.com/ee/83/d3/ee83d32a4831963ddc166312735eb9d8.js"></script>
     <!-- ═══ Adsterra: Social Bar ═══ -->
