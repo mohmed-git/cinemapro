@@ -2,8 +2,6 @@
 import { SITE } from '../lib/site';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import AdBanner from '../components/AdBanner.astro';
-import AdNative from '../components/AdNative.astro';
 import '../styles/global.css';
 
 interface Props {
@@ -14,9 +12,6 @@ interface Props {
   noindex?: boolean;
   ogType?: 'website' | 'video.movie' | 'video.tv_show' | 'video.episode' | 'article';
   jsonLd?: unknown;
-  /** هوية القسم اللونية: home | anime | movies | series */
-  section?: 'home' | 'anime' | 'movies' | 'series';
-  keywords?: string;
 }
 
 const {
@@ -27,18 +22,15 @@ const {
   noindex = false,
   ogType = 'website',
   jsonLd,
-  section = 'home',
-  keywords,
 } = Astro.props;
 
-const hasBrandSuffix = title ? new RegExp(`${SITE.name}|${SITE.nameEn}`, 'i').test(title) : false;
+const hasBrandSuffix = title ? /سينما برو|Cinema\s*Pro/i.test(title) : false;
 const fullTitle = title
   ? hasBrandSuffix ? title : `${title} | ${SITE.name}`
-  : `${SITE.name} ${SITE.nameEn} — ${SITE.tagline}`;
+  : `${SITE.name} — ${SITE.tagline}`;
 const url = new URL(Astro.url.pathname, SITE.url).toString();
 const canonicalUrl = canonical || url;
 const ogImage = image && image.startsWith('http') ? image : new URL(image, SITE.url).toString();
-const ogImageAlt = `${fullTitle} - ${SITE.name}`;
 ---
 
 <!DOCTYPE html>
@@ -46,31 +38,26 @@ const ogImageAlt = `${fullTitle} - ${SITE.name}`;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content={SITE.themeColor} />
+    <meta name="theme-color" content="#0B0F19" />
     <meta name="generator" content={Astro.generator} />
 
     <!-- Primary -->
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    {keywords && <meta name="keywords" content={keywords} />}
     <link rel="canonical" href={canonicalUrl} />
 
     {noindex && <meta name="robots" content="noindex, nofollow" />}
-    {!noindex && <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />}
 
     <!-- Preconnect + fonts (Arabic) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap"
     />
 
     <!-- Favicon -->
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Open Graph -->
@@ -80,89 +67,28 @@ const ogImageAlt = `${fullTitle} - ${SITE.name}`;
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={ogImage} />
-    <meta property="og:image:secure_url" content={ogImage} />
-    <meta property="og:image:alt" content={ogImageAlt} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:locale" content="ar_AR" />
+    <meta property="og:locale" content="ar_SA" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
-    <meta name="twitter:image:alt" content={ogImageAlt} />
 
     {jsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     )}
-
-    <!-- ═══ Google Analytics ═══ -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-H83JSFFRR5" is:inline></script>
-    <script is:inline>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-H83JSFFRR5');
-    </script>
-
-    <!-- ═══ Adsterra: Popunder (مرة واحدة لكل جلسة) ═══ -->
-    <script src="https://pl29732227.effectivecpmnetwork.com/ee/83/d3/ee83d32a4831963ddc166312735eb9d8.js"></script>
-    <!-- ═══ Adsterra: Social Bar ═══ -->
-    <script src="https://pl29732229.effectivecpmnetwork.com/6a/4f/c7/6a4fc7ce371ab54cb46f7a0a514f61d8.js"></script>
-    <!-- ═══ Adsterra: Smartlink كـ Popunder ثانوي ═══ -->
-    <script>
-      (function(){
-        var SL="https://www.effectivecpmnetwork.com/wbnrckax?key=af6decf62eddc36667ffab047fdae426";
-        var KEY="_sl_v2";
-        function canFire(){try{return Date.now()-parseInt(sessionStorage.getItem(KEY)||"0",10)>86400000;}catch(e){return false;}}
-        function fire(e){
-          if(!canFire())return;
-          var t=e.target;
-          if(t.closest&&t.closest('a[href*="effectivecpmnetwork"],a[href*="highperformanceformat"]'))return;
-          try{sessionStorage.setItem(KEY,String(Date.now()));}catch(e){}
-          try{window.open(SL,"_blank","noopener,noreferrer");}catch(e){}
-        }
-        document.addEventListener("click",fire,{passive:true});
-      })();
-    </script>
   </head>
 
-  <body class="flex min-h-screen flex-col" data-section={section}>
+  <body class="flex min-h-screen flex-col">
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:right-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand-600 focus:px-3 focus:py-2 focus:text-white">
       تخطي إلى المحتوى الرئيسي
     </a>
 
-    <Header section={section} />
-
-    <!-- بانر عريض تحت الهيدر — ديسكتوب فقط -->
-    <div class="hidden lg:flex justify-center py-2 bg-transparent">
-      <div style="display:inline-block;overflow:hidden;border-radius:6px;line-height:0;">
-        <script>atOptions={'key':'d8fc084357e85725329760162e8a56ae','format':'iframe','height':90,'width':728,'params':{}};</script>
-        <script src="https://www.highperformanceformat.com/d8fc084357e85725329760162e8a56ae/invoke.js"></script>
-      </div>
-    </div>
-
-    <!-- بانر موبايل تحت الهيدر — موبايل فقط -->
-    <div class="flex lg:hidden justify-center py-1 bg-transparent">
-      <div style="display:inline-block;overflow:hidden;border-radius:4px;line-height:0;">
-        <script>atOptions={'key':'0a73b8f05deec5d047f905bd0d996e93','format':'iframe','height':50,'width':320,'params':{}};</script>
-        <script src="https://www.highperformanceformat.com/0a73b8f05deec5d047f905bd0d996e93/invoke.js"></script>
-      </div>
-    </div>
-
+    <Header />
     <main id="main" class="flex-1">
       <slot />
     </main>
-
-    <!-- Native Banner قبل الفوتر مباشرة -->
-    <div class="flex justify-center px-4 mb-4">
-      <div style="max-width:100%;overflow:hidden;">
-        <script async data-cfasync="false" src="https://pl29732230.effectivecpmnetwork.com/b65754a35220da5ca63dfb32f4185a46/invoke.js"></script>
-        <div id="container-b65754a35220da5ca63dfb32f4185a46"></div>
-      </div>
-    </div>
-
     <Footer />
   </body>
 </html>
